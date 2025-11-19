@@ -55,8 +55,8 @@ contract MedicalRecords {
         string diagnosis;
         string treatment;
         string medications;
-        uint256 date;          // unix timestamp (createdAt)
-        address doctorAddress; // creator (doctor or patient)
+        uint256 date;          
+        address doctorAddress; 
         string hospital;
     }
 
