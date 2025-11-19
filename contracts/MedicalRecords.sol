@@ -20,6 +20,18 @@ contract MedicalRecords {
         _;
     }
 
+    // Patient or a doctor with consent to this patient's records
+    modifier onlyPatientOrDoctor(address _patientAddress) {
+        require(
+            msg.sender == _patientAddress || hasAccess(_patientAddress, msg.sender),
+            "Not authorized"
+        );
+        _;
+    }
+
+    // Note: keep sensitive data encrypted off-chain; only hashes/URIs on-chain in production
+    string private constant ENCRYPTION_NOTE = "Sensitive data should be encrypted off-chain";
+
     constructor() {
         admin = msg.sender;
     }
@@ -109,7 +121,7 @@ contract MedicalRecords {
     ) public {
         require(patients[_patientAddress].exists, "Patient does not exist");
 
-        // Patient can add their own record; Doctor must have consent
+        // Patient can add own record; Doctor must be verified and have consent
         bool allowed = (msg.sender == _patientAddress) || (hasAccess(_patientAddress, msg.sender) && roles[msg.sender] == Role.Doctor);
         require(allowed, "No access to patient records");
 
@@ -198,20 +210,27 @@ contract MedicalRecords {
         require(block.timestamp <= access.grantedAt + 24 hours, "Emergency window expired");
 
         emit EmergencyAccessUsed(_patientAddress, msg.sender);
-        // Note: actual record retrieval still goes through getPatientRecords with checks below
     }
 
     // --- Record retrieval ---
 
-    function getPatientRecords(address _patientAddress) public view returns (MedicalRecord[] memory) {
-        bool allowed =
-            (msg.sender == _patientAddress) ||
-            hasAccess(_patientAddress, msg.sender) ||
-            (emergencyAccesses[_patientAddress].isActive &&
-             emergencyAccesses[_patientAddress].emergencyContact == msg.sender &&
-             block.timestamp <= emergencyAccesses[_patientAddress].grantedAt + 24 hours);
+    function getPatientRecords(address _patientAddress)
+        public
+        view
+        onlyPatientOrDoctor(_patientAddress)
+        returns (MedicalRecord[] memory)
+    {
+        // Emergency contact can also read within 24 hours
+        bool emergencyOk =
+            emergencyAccesses[_patientAddress].isActive &&
+            emergencyAccesses[_patientAddress].emergencyContact == msg.sender &&
+            block.timestamp <= emergencyAccesses[_patientAddress].grantedAt + 24 hours;
 
-        require(allowed, "No access to patient records");
+        require(
+            msg.sender == _patientAddress || hasAccess(_patientAddress, msg.sender) || emergencyOk,
+            "No access to patient records"
+        );
+
         return patientRecords[_patientAddress];
     }
 
