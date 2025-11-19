@@ -3,6 +3,14 @@ pragma solidity ^0.8.19;
 
 contract MedicalRecords {
     address public admin;
+    uint256 recordId;
+    string diagnosis;
+    string treatment;
+    string medications;
+    uint256 date;
+    address doctorAddress;
+    string hospital;
+}
     
     struct Patient {
         address walletAddress;
@@ -10,11 +18,20 @@ contract MedicalRecords {
         uint256 dateOfBirth;
         bool exists;
     }
+    struct AccessControl {
+    address authorizedDoctor;
+    uint256 accessUntil;
+    bool isActive;
+}
     
     mapping(address => Patient) public patients;
     address[] public patientAddresses;
+    mapping(address => MedicalRecord[]) private patientRecords;
+    mapping(address => AccessControl[]) private patientAccessControls;
     
     event PatientRegistered(address indexed patientAddress, string name);
+    event RecordAdded(address indexed patient, uint256 recordId, address doctor);
+event AccessGranted(address indexed patient, address indexed doctor, uint256 until);
     
     constructor() {
         admin = msg.sender;
@@ -47,4 +64,3 @@ contract MedicalRecords {
         require(patients[_patientAddress].exists, "Patient does not exist");
         return patients[_patientAddress];
     }
-}
