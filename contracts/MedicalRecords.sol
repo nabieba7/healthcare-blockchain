@@ -55,6 +55,50 @@ event AccessGranted(address indexed patient, address indexed doctor, uint256 unt
             dateOfBirth: _dateOfBirth,
             exists: true
         });
+
+        function addMedicalRecord(
+    address _patientAddress,
+    string memory _diagnosis,
+    string memory _treatment,
+    string memory _medications,
+    string memory _hospital
+) public {
+    require(patients[_patientAddress].exists, "Patient does not exist");
+    
+    // Check if doctor has access or is adding their own record
+    require(
+        hasAccess(_patientAddress, msg.sender) || msg.sender == _patientAddress,
+        "No access to patient records"
+    );
+    
+    uint256 recordId = patientRecords[_patientAddress].length;
+    
+    patientRecords[_patientAddress].push(MedicalRecord({
+        recordId: recordId,
+        diagnosis: _diagnosis,
+        treatment: _treatment,
+        medications: _medications,
+        date: block.timestamp,
+        doctorAddress: msg.sender,
+        hospital: _hospital
+    }));
+    
+    emit RecordAdded(_patientAddress, recordId, msg.sender);
+}
+
+function grantAccess(address _doctorAddress, uint256 _accessDuration) public {
+    require(patients[msg.sender].exists, "Only patients can grant access");
+    
+    uint256 accessUntil = block.timestamp + _accessDuration;
+    
+    patientAccessControls[msg.sender].push(AccessControl({
+        authorizedDoctor: _doctorAddress,
+        accessUntil: accessUntil,
+        isActive: true
+    }));
+    
+    emit AccessGranted(msg.sender, _doctorAddress, accessUntil);
+}
         
         patientAddresses.push(_patientAddress);
         emit PatientRegistered(_patientAddress, _name);
