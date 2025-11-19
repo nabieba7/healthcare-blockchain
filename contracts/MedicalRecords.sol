@@ -99,6 +99,7 @@ function grantAccess(address _doctorAddress, uint256 _accessDuration) public {
     
     emit AccessGranted(msg.sender, _doctorAddress, accessUntil);
 }
+
         
         patientAddresses.push(_patientAddress);
         emit PatientRegistered(_patientAddress, _name);
@@ -108,3 +109,43 @@ function grantAccess(address _doctorAddress, uint256 _accessDuration) public {
         require(patients[_patientAddress].exists, "Patient does not exist");
         return patients[_patientAddress];
     }
+
+    function getRecordHash(
+    string memory _diagnosis,
+    string memory _treatment,
+    string memory _medications,
+    uint256 _date
+) public pure returns (bytes32) {
+    return keccak256(abi.encodePacked(_diagnosis, _treatment, _medications, _date));
+}
+
+function verifyRecordIntegrity(
+    address _patientAddress,
+    uint256 _recordId,
+    bytes32 _expectedHash
+) public view returns (bool) {
+    MedicalRecord memory record = patientRecords[_patientAddress][_recordId];
+    bytes32 actualHash = getRecordHash(
+        record.diagnosis,
+        record.treatment,
+        record.medications,
+        record.date
+    );
+    return actualHash == _expectedHash;
+}
+
+function hasAccess(address _patientAddress, address _doctorAddress) 
+    public view returns (bool) {
+    
+    if (_patientAddress == _doctorAddress) return true;
+    
+    AccessControl[] memory accesses = patientAccessControls[_patientAddress];
+    for (uint i = 0; i < accesses.length; i++) {
+        if (accesses[i].authorizedDoctor == _doctorAddress && 
+            accesses[i].isActive && 
+            accesses[i].accessUntil > block.timestamp) {
+            return true;
+        }
+    }
+    return false;
+}
